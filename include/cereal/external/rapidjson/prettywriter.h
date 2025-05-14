@@ -34,9 +34,10 @@ CEREAL_RAPIDJSON_NAMESPACE_BEGIN
  */
 enum PrettyFormatOptions {
     kFormatDefault = 0,         //!< Default pretty formatting.
-    kFormatSingleLineArray = 1, //!< Format arrays on a single line.
-    kFormatNoIndent = 2,        //!< No indentation at all.
-    kFormatCompact = 4         //!< Compact output without any whitespace.
+    kFormatSingleLineArray = 1 << 1, //!< Format arrays on a single line.
+    kFormatNoIndent = 1 << 2,        //!< No indentation at all.
+    kFormatSingleLineObject = 1 << 3,
+    kFormatCompact = kFormatSingleLineArray | kFormatNoIndent | kFormatSingleLineObject         //!< Compact output without any whitespace.
 };
 
 //! Writer with indentation and spacing.
@@ -149,7 +150,7 @@ public:
        
         bool empty = Base::level_stack_.template Pop<typename Base::Level>(1)->valueCount == 0;
 
-        if (!empty) {
+        if (!empty && !(formatOptions_ & kFormatSingleLineObject)) {
             Base::os_->Put('\n');
             WriteIndent();
         }
@@ -220,11 +221,11 @@ protected:
             if (level->inArray) {
                 if (level->valueCount > 0) {
                     Base::os_->Put(','); // add comma if it is not the first element in array
-                    if (!(formatOptions_ & kFormatCompact))
+                    if (formatOptions_ & kFormatSingleLineArray)
                         Base::os_->Put(' ');
                 }
 
-                if (!(formatOptions_ & kFormatSingleLineArray) && !(formatOptions_ & kFormatCompact)) {
+                if (!(formatOptions_ & kFormatSingleLineArray)) {
                     Base::os_->Put('\n');
                     WriteIndent();
                 }
@@ -233,21 +234,21 @@ protected:
                 if (level->valueCount > 0) {
                     if (level->valueCount % 2 == 0) {
                         Base::os_->Put(',');
-                        if (!(formatOptions_ & kFormatCompact)) {
+                        if (!(formatOptions_ & kFormatSingleLineObject)) {
                             Base::os_->Put('\n');
                         }
                     }
                     else {
                         Base::os_->Put(':');
-                        if (!(formatOptions_ & kFormatCompact)) {
+                        if (!(formatOptions_ & kFormatSingleLineObject)) {
                             Base::os_->Put(' ');
                         }
                     }
                 }
-                else if (!(formatOptions_ & kFormatCompact))
+                else if (!(formatOptions_ & kFormatSingleLineObject))
                     Base::os_->Put('\n');
 
-                if (level->valueCount % 2 == 0 && !(formatOptions_ & kFormatNoIndent) && !(formatOptions_ & kFormatCompact))
+                if (level->valueCount % 2 == 0 && !(formatOptions_ & kFormatNoIndent))
                     WriteIndent();
             }
             if (!level->inArray && level->valueCount % 2 == 0)
@@ -261,7 +262,7 @@ protected:
     }
 
     void WriteIndent()  {
-        if (formatOptions_ & kFormatNoIndent || formatOptions_ & kFormatCompact)
+        if (formatOptions_ & kFormatNoIndent)
             return;
             
         size_t count = (Base::level_stack_.GetSize() / sizeof(typename Base::Level)) * indentCharCount_;
