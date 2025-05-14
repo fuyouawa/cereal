@@ -125,6 +125,13 @@ namespace cereal
           //! Default options with no indentation
           static Options NoIndent(){ return Options( JSONWriter::kDefaultMaxDecimalPlaces, IndentChar::space, 0 ); }
 
+          //! Compact output without any whitespace
+          static Options Compact(){ 
+            Options opt( JSONWriter::kDefaultMaxDecimalPlaces, IndentChar::space, 0 );
+            opt.formatOptions = CEREAL_RAPIDJSON_NAMESPACE::kFormatCompact;
+            return opt;
+          }
+
           //! The character to use for indenting
           enum class IndentChar : char
           {
@@ -138,19 +145,23 @@ namespace cereal
           /*! @param precision The precision used for floating point numbers
               @param indentChar The type of character to indent with
               @param indentLength The number of indentChar to use for indentation
-                             (0 corresponds to no indentation) */
+                             (0 corresponds to no indentation)
+              @param formatOpts The formatting options to use */
           explicit Options( int precision = JSONWriter::kDefaultMaxDecimalPlaces,
                             IndentChar indentChar = IndentChar::space,
-                            unsigned int indentLength = 4 ) :
+                            unsigned int indentLength = 4,
+                            CEREAL_RAPIDJSON_NAMESPACE::PrettyFormatOptions formatOpts = CEREAL_RAPIDJSON_NAMESPACE::kFormatDefault ) :
             itsPrecision( precision ),
             itsIndentChar( static_cast<char>(indentChar) ),
-            itsIndentLength( indentLength ) { }
+            itsIndentLength( indentLength ),
+            formatOptions( formatOpts ) { }
 
         private:
           friend class JSONOutputArchive;
           int itsPrecision;
           char itsIndentChar;
           unsigned int itsIndentLength;
+          CEREAL_RAPIDJSON_NAMESPACE::PrettyFormatOptions formatOptions;
       };
 
       //! Construct, outputting to the provided stream
@@ -165,6 +176,7 @@ namespace cereal
       {
         itsWriter.SetMaxDecimalPlaces( options.itsPrecision );
         itsWriter.SetIndent( options.itsIndentChar, options.itsIndentLength );
+        itsWriter.SetFormatOptions( options.formatOptions );
         itsNameCounter.push(0);
         itsNodeStack.push(NodeType::StartObject);
       }

@@ -34,7 +34,9 @@ CEREAL_RAPIDJSON_NAMESPACE_BEGIN
  */
 enum PrettyFormatOptions {
     kFormatDefault = 0,         //!< Default pretty formatting.
-    kFormatSingleLineArray = 1  //!< Format arrays on a single line.
+    kFormatSingleLineArray = 1, //!< Format arrays on a single line.
+    kFormatNoIndent = 2,        //!< No indentation at all.
+    kFormatCompact = 4         //!< Compact output without any whitespace.
 };
 
 //! Writer with indentation and spacing.
@@ -60,7 +62,7 @@ public:
 
 
     explicit PrettyWriter(StackAllocator* allocator = 0, size_t levelDepth = Base::kDefaultLevelDepth) : 
-        Base(allocator, levelDepth), indentChar_(' '), indentCharCount_(4) {}
+        Base(allocator, levelDepth), indentChar_(' '), indentCharCount_(4), formatOptions_(kFormatDefault) {}
 
 #if CEREAL_RAPIDJSON_HAS_CXX11_RVALUE_REFS
     PrettyWriter(PrettyWriter&& rhs) :
@@ -85,6 +87,11 @@ public:
     PrettyWriter& SetFormatOptions(PrettyFormatOptions options) {
         formatOptions_ = options;
         return *this;
+    }
+
+    //! Get current formatting options
+    PrettyFormatOptions GetFormatOptions() const {
+        return formatOptions_;
     }
 
     /*! @name Implementation of Handler
@@ -213,11 +220,11 @@ protected:
             if (level->inArray) {
                 if (level->valueCount > 0) {
                     Base::os_->Put(','); // add comma if it is not the first element in array
-                    if (formatOptions_ & kFormatSingleLineArray)
+                    if (!(formatOptions_ & kFormatCompact))
                         Base::os_->Put(' ');
                 }
 
-                if (!(formatOptions_ & kFormatSingleLineArray)) {
+                if (!(formatOptions_ & kFormatSingleLineArray) && !(formatOptions_ & kFormatCompact)) {
                     Base::os_->Put('\n');
                     WriteIndent();
                 }
@@ -226,17 +233,21 @@ protected:
                 if (level->valueCount > 0) {
                     if (level->valueCount % 2 == 0) {
                         Base::os_->Put(',');
-                        Base::os_->Put('\n');
+                        if (!(formatOptions_ & kFormatCompact)) {
+                            Base::os_->Put('\n');
+                        }
                     }
                     else {
                         Base::os_->Put(':');
-                        Base::os_->Put(' ');
+                        if (!(formatOptions_ & kFormatCompact)) {
+                            Base::os_->Put(' ');
+                        }
                     }
                 }
-                else
+                else if (!(formatOptions_ & kFormatCompact))
                     Base::os_->Put('\n');
 
-                if (level->valueCount % 2 == 0)
+                if (level->valueCount % 2 == 0 && !(formatOptions_ & kFormatNoIndent) && !(formatOptions_ & kFormatCompact))
                     WriteIndent();
             }
             if (!level->inArray && level->valueCount % 2 == 0)
@@ -250,6 +261,9 @@ protected:
     }
 
     void WriteIndent()  {
+        if (formatOptions_ & kFormatNoIndent || formatOptions_ & kFormatCompact)
+            return;
+            
         size_t count = (Base::level_stack_.GetSize() / sizeof(typename Base::Level)) * indentCharCount_;
         PutN(*Base::os_, static_cast<typename OutputStream::Ch>(indentChar_), count);
     }
